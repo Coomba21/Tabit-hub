@@ -187,11 +187,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
   <div class="sb-nav">
     <div class="sb-section">Dev Support</div>
     <div class="nav-item active" onclick="navigate('sup-queue',this)"><span class="nav-icon">🎯</span>SUP Queue</div>
-    <div class="nav-item disabled"><span class="nav-icon">📈</span>Weekly Trends<span class="nav-badge soon">Soon</span></div>
+    <div class="nav-item" onclick="navigate('weekly',this)"><span class="nav-icon">📈</span>Weekly Trends</div>
     <div class="sb-section">Product</div>
     <div class="nav-item disabled"><span class="nav-icon">🐛</span>Feature & Bugs<span class="nav-badge soon">Soon</span></div>
     <div class="sb-section">Reporting</div>
-    <div class="nav-item disabled"><span class="nav-icon">📊</span>Leadership View<span class="nav-badge soon">Soon</span></div>
+    <div class="nav-item" onclick="navigate('leadership',this)"><span class="nav-icon">📊</span>Leadership View</div>
   </div>
   <div class="sb-footer">Tabit Ops Hub <span class="ver">v1.3</span><br><span style="margin-top:3px;display:block">Build: Apr 2026</span></div>
 </nav>
@@ -225,9 +225,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div id="dashboard-section" style="display:none"></div>
     </div>
 
-    <div class="page" id="page-weekly"><div class="coming-soon"><div class="coming-soon-icon">📈</div><div class="soon-badge">Coming in Phase 2</div><h2>Weekly Trend Comparison</h2><p>Week-over-week comparison — new tickets, closures, priority shifts, and resolution velocity trends.</p></div></div>
+    <div class="page" id="page-weekly"><div id="trends-content"><div class="coming-soon"><div class="coming-soon-icon">📈</div><h2 style="color:var(--muted)">No trend data yet</h2><p style="color:var(--muted)">Upload your first CSV export to begin. Trends will appear after your second upload.</p></div></div></div>
     <div class="page" id="page-features"><div class="coming-soon"><div class="coming-soon-icon">🐛</div><div class="soon-badge">Coming in Phase 3</div><h2>Feature & Bug Prioritization</h2><p>TAB backlog scoring engine — data-backed decisions on what to build and fix next.</p></div></div>
-    <div class="page" id="page-leadership"><div class="coming-soon"><div class="coming-soon-icon">📊</div><div class="soon-badge">Coming in Phase 4</div><h2>Leadership Summary View</h2><p>Printable executive summary combining queue health, trends, and open risk items.</p></div></div>
+    <div class="page" id="page-leadership"><div id="leadership-content"><div class="coming-soon"><div class="coming-soon-icon">📊</div><h2 style="color:var(--muted)">No data loaded yet</h2><p style="color:var(--muted)">Upload a CSV export on the SUP Queue page first.</p></div></div></div>
   </div>
 </div>
 
@@ -277,6 +277,7 @@ function processFile(file){
       const rows=parseCSV(e.target.result);
       const data=analyzeData(rows,file.name);
       localStorage.setItem('tabit_hub_data',JSON.stringify({data,fileName:file.name,savedAt:new Date().toISOString()}));
+      saveSnapshot(data,file.name);
       renderDashboard(data,file.name);
     }catch(err){alert('Error parsing CSV: '+err.message);console.error(err)}
   };
@@ -650,6 +651,367 @@ function resetData(){
   document.getElementById('dashboard-section').style.display='none';
   document.getElementById('dashboard-section').innerHTML='';
 }
+
+// ── HISTORY STORE ─────────────────────────────────────────────
+// Keeps compact snapshots (max 10) for trend analysis
+function saveSnapshot(data, fileName){
+  const snap = {
+    date: new Date().toISOString().split('T')[0],
+    fileName,
+    savedAt: new Date().toISOString(),
+    openCount: data.open.length,
+    financial: data.financial,
+    multiSite: data.multiSite,
+    stale: data.stale.length,
+    forgotten: data.forgottenQ.length,
+    parked: data.parkedQ.length,
+    offlineReview: data.offlineQ.length,
+    tabLinked: data.tabLinked,
+    median: data.median,
+    p90: data.p90,
+    topAccount: Object.keys(data.topAccounts)[0]||'',
+    topAccountCount: Object.values(data.topAccounts)[0]||0,
+    byPri: data.byPri,
+    topTickets: data.open.slice(0,10).map(t=>({
+      key:t.key, account:t.account, score:t.score,
+      age:t.age, financial:t.fin, forgotten:t.forgotten,
+      parked:t.parked, review:t.review, status:t.status,
+      issueType:t.issueType, reasons:t.reasons,
+    })),
+    allKeys: data.open.map(t=>t.key),
+    productAreas: data.productAreas,
+  };
+  let history = [];
+  try{ history = JSON.parse(localStorage.getItem('tabit_hub_history')||'[]'); }catch(e){}
+  // Avoid duplicate same-day uploads — replace if same date
+  history = history.filter(s=>s.date!==snap.date);
+  history.unshift(snap);
+  if(history.length>10) history = history.slice(0,10);
+  localStorage.setItem('tabit_hub_history', JSON.stringify(history));
+  return history;
+}
+
+function loadHistory(){
+  try{ return JSON.parse(localStorage.getItem('tabit_hub_history')||'[]'); }catch(e){ return []; }
+}
+
+// ── WEEKLY TRENDS ─────────────────────────────────────────────
+function renderTrends(){
+  const history = loadHistory();
+  const el = document.getElementById('trends-content');
+  if(!history.length){
+    el.innerHTML=`<div class="coming-soon"><div class="coming-soon-icon">📈</div><h2 style="color:var(--muted)">No trend data yet</h2><p style="color:var(--muted)">Upload your first CSV on the SUP Queue page. Trends appear after your second upload.</p></div>`;
+    return;
+  }
+  if(history.length<2){
+    el.innerHTML=`<div class="coming-soon"><div class="coming-soon-icon">📈</div><h2 style="color:var(--muted)">Need one more upload</h2><p style="color:var(--muted)">You have ${history.length} snapshot. Upload again after your next export and full trend comparison will appear.</p><div style="margin-top:16px;font-family:var(--mono);font-size:12px;color:var(--accent)">📅 Last upload: ${history[0].date} · ${history[0].openCount} open tickets</div></div>`;
+    return;
+  }
+
+  const cur = history[0], prev = history[1];
+  const delta = (a,b) => {
+    const d=a-b;
+    const col=d>0?'var(--danger)':d<0?'var(--accent2)':'var(--muted)';
+    const arr=d>0?'▲':d<0?'▼':'—';
+    return `<span style="color:${col};font-family:var(--mono);font-size:11px">${arr}${Math.abs(d)}</span>`;
+  };
+
+  // Build timeline for open count chart
+  const timeline=[...history].reverse();
+  const maxOpen=Math.max(...timeline.map(s=>s.openCount), cur.openCount*1.2, 40);
+
+  let timelineHTML='';
+  timeline.forEach(s=>{
+    const pct=Math.round((s.openCount/maxOpen)*100);
+    const overTarget=s.openCount>35;
+    timelineHTML+=`
+      <div class="bar-row">
+        <span class="bar-label" style="width:74px">${s.date.slice(5)}</span>
+        <div class="bar-outer" style="position:relative">
+          <div class="bar-inner" style="width:${pct}%;background:${overTarget?'var(--danger)':'var(--accent2)'}">${s.openCount}</div>
+          <div style="position:absolute;top:0;bottom:0;left:${Math.round((35/maxOpen)*100)}%;width:1px;background:rgba(245,166,35,.5)"></div>
+        </div>
+        <span class="bar-val">${s.openCount}</span>
+      </div>`;
+  });
+
+  // New vs closed between last two uploads
+  const prevKeys=new Set(prev.allKeys||[]);
+  const curKeys=new Set(cur.allKeys||[]);
+  const newTickets=[...curKeys].filter(k=>!prevKeys.has(k));
+  const closedTickets=[...prevKeys].filter(k=>!curKeys.has(k));
+
+  // Score changes — tickets that are in both
+  const prevTicketMap={};
+  (prev.topTickets||[]).forEach(t=>{prevTicketMap[t.key]=t;});
+  const scoreChanges=[];
+  (cur.topTickets||[]).forEach(t=>{
+    if(prevTicketMap[t.key]){
+      const diff=t.score-prevTicketMap[t.key].score;
+      if(diff!==0) scoreChanges.push({key:t.key,account:t.account,cur:t.score,prev:prevTicketMap[t.key].score,diff});
+    }
+  });
+  scoreChanges.sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
+
+  el.innerHTML=`
+  <div style="padding:0">
+
+    <div style="padding:12px 20px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">${history.length} snapshot${history.length>1?'s':''} · Latest: <strong style="color:var(--text)">${cur.date}</strong> · Previous: <strong style="color:var(--text)">${prev.date}</strong></div>
+    </div>
+
+    <!-- DELTA ROW -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin-bottom:16px">
+      ${[
+        ['Open Tickets', cur.openCount, prev.openCount, cur.openCount<=35?'var(--accent2)':'var(--danger)'],
+        ['Financial', cur.financial, prev.financial, 'var(--warn)'],
+        ['Stale >30d', cur.stale, prev.stale, 'var(--warn)'],
+        ['Forgotten', cur.forgotten, prev.forgotten, 'var(--danger)'],
+      ].map(([label,c,p,color])=>`
+        <div style="background:var(--surface);padding:16px;text-align:center">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${label}</div>
+          <div style="font-family:var(--mono);font-size:26px;font-weight:600;color:${color}">${c}</div>
+          <div style="margin-top:4px">${delta(c,p)} <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">vs ${p}</span></div>
+        </div>`).join('')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+      <!-- OPEN TICKET TIMELINE -->
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-header"><span class="panel-title">Open Ticket History</span><span class="panel-badge">${history.length} uploads</span></div>
+        <div class="bar-chart">
+          ${timelineHTML}
+          <div style="font-size:11px;font-family:var(--mono);color:rgba(245,166,35,.7);margin-top:6px">— Orange line = 35 ticket target</div>
+        </div>
+      </div>
+
+      <!-- NEW vs CLOSED -->
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-header"><span class="panel-title">Movement: ${prev.date} → ${cur.date}</span></div>
+        <div style="padding:14px 16px">
+          <div style="margin-bottom:14px">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--accent2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">✚ ${newTickets.length} New Ticket${newTickets.length!==1?'s':''}</div>
+            ${newTickets.length?newTickets.map(k=>`<div style="font-family:var(--mono);font-size:11px;color:var(--accent);padding:2px 0">${k}</div>`).join(''):'<div style="font-size:12px;color:var(--muted)">No new tickets since last upload</div>'}
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:14px">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">✓ ${closedTickets.length} Resolved/Removed</div>
+            ${closedTickets.length?closedTickets.map(k=>`<div style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:2px 0;text-decoration:line-through">${k}</div>`).join(''):'<div style="font-size:12px;color:var(--muted)">No tickets resolved since last upload</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRIC TRENDS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-header"><span class="panel-title">Resolution Time Trend</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)">
+          ${['Highest','High','Medium','Low'].map(p=>{
+            const c=cur.byPri[p],pv=prev.byPri[p];
+            const colors={Highest:'var(--danger)',High:'var(--warn)',Medium:'var(--accent)',Low:'var(--muted)'};
+            if(c===undefined)return`<div style="background:var(--surface);padding:12px;text-align:center"><div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase">${p}</div><div style="color:var(--muted);font-size:11px;margin-top:8px">—</div></div>`;
+            const d=pv!==undefined?c-pv:null;
+            const arr=d===null?'':d>0?`<span style="color:var(--danger)">▲${Math.abs(d).toFixed(1)}d</span>`:d<0?`<span style="color:var(--accent2)">▼${Math.abs(d).toFixed(1)}d</span>`:'<span style="color:var(--muted)">—</span>';
+            return`<div style="background:var(--surface);padding:12px;text-align:center">
+              <div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">${p}</div>
+              <div style="font-family:var(--mono);font-size:20px;font-weight:600;color:${colors[p]}">${c}d</div>
+              <div style="margin-top:3px;font-family:var(--mono);font-size:10px">${arr}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="padding:8px 14px;font-size:11px;color:var(--muted);font-family:var(--mono);border-top:1px solid var(--border)">Overall: ${cur.median}d median ${cur.median<prev.median?'<span style="color:var(--accent2)">▼ faster</span>':cur.median>prev.median?'<span style="color:var(--warn)">▲ slower</span>':'<span style="color:var(--muted)">unchanged</span>'}</div>
+      </div>
+
+      <!-- SCORE CHANGES -->
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-header"><span class="panel-title">Priority Score Shifts</span><span class="panel-badge">${scoreChanges.length} changed</span></div>
+        <div style="padding:10px 0">
+          ${scoreChanges.length?scoreChanges.slice(0,6).map(c=>{
+            const col=c.diff>0?'var(--danger)':'var(--accent2)';
+            const arr=c.diff>0?'▲':'▼';
+            return`<div style="display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid rgba(37,42,58,.5)">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--accent);flex-shrink:0">${c.key}</span>
+              <span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${c.account}</span>
+              <span style="font-family:var(--mono);font-size:11px;color:${col};flex-shrink:0">${arr}${Math.abs(c.diff)} (${c.prev}→${c.cur})</span>
+            </div>`;
+          }).join(''):`<div style="padding:16px;font-size:12px;color:var(--muted);text-align:center">No score changes between uploads</div>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY TABLE -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Upload History</span><span class="panel-badge">${history.length} of 10 max</span></div>
+      <div style="overflow-x:auto">
+        <table class="p-table">
+          <thead><tr><th>Date</th><th>File</th><th>Open</th><th>Financial</th><th>Stale</th><th>Forgotten</th><th>Median Res</th></tr></thead>
+          <tbody>
+            ${history.map((s,i)=>`<tr>
+              <td style="font-family:var(--mono);font-size:11px">${s.date}${i===0?` <span style="color:var(--accent2);font-size:10px">latest</span>`:''}</td>
+              <td style="font-size:11px;color:var(--muted)">${s.fileName}</td>
+              <td style="font-family:var(--mono);font-weight:600;color:${s.openCount<=35?'var(--accent2)':'var(--danger)'}">${s.openCount}</td>
+              <td style="font-family:var(--mono);color:var(--warn)">${s.financial}</td>
+              <td style="font-family:var(--mono);color:${s.stale>5?'var(--warn)':'var(--muted)'}">${s.stale}</td>
+              <td style="font-family:var(--mono);color:${s.forgotten>0?'var(--danger)':'var(--muted)'}">${s.forgotten}</td>
+              <td style="font-family:var(--mono);color:var(--muted)">${s.median}d</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>`;
+}
+
+// ── LEADERSHIP VIEW ───────────────────────────────────────────
+function renderLeadership(){
+  const el=document.getElementById('leadership-content');
+  const saved=localStorage.getItem('tabit_hub_data');
+  if(!saved){el.innerHTML='<div class="coming-soon"><div class="coming-soon-icon">📊</div><h2 style="color:var(--muted)">No data loaded</h2><p style="color:var(--muted)">Upload a CSV on the SUP Queue page first.</p></div>';return;}
+  let data,fileName;
+  try{const p=JSON.parse(saved);data=p.data;fileName=p.fileName;}catch(e){return;}
+  const history=loadHistory();
+  const prev=history.length>1?history[1]:null;
+
+  const oc=data.open.length,t=data.qTarget||35;
+  const healthColor=oc<=t?'#00d4a0':oc<=t*1.2?'#f5a623':'#ff4d6d';
+  const healthLabel=oc<=t?'ON TARGET':oc<=t*1.2?'WATCH':'AT RISK';
+  const trend=prev?oc-prev.openCount:null;
+  const trendStr=trend===null?'First upload':trend<0?`▼ ${Math.abs(trend)} since ${prev.date}`:`${trend>0?'▲':'—'} ${trend===0?'No change':Math.abs(trend)+' more since '+prev.date}`;
+  const trendCol=trend===null?'var(--muted)':trend<0?'var(--accent2)':trend>0?'var(--danger)':'var(--muted)';
+
+  const top5=data.open.filter(t=>!t.parked).slice(0,5);
+  const topAcct=Object.entries(data.topAccounts)[0];
+
+  el.innerHTML=`
+  <div style="max-width:860px">
+
+    <!-- PRINT BUTTON -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">Leadership Summary · ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · Source: ${fileName}</div>
+      <button onclick="window.print()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 16px;border-radius:5px;cursor:pointer;font-size:12px;font-family:var(--sans)">🖨 Print / Save PDF</button>
+    </div>
+
+    <!-- HEADER STATUS BANNER -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;gap:20px">
+      <div style="width:72px;height:72px;border-radius:50%;border:3px solid ${healthColor};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="font-size:26px;font-weight:700;font-family:var(--mono);color:${healthColor}">${oc}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Dev Support Queue Status</div>
+        <div style="font-size:22px;font-weight:700;color:${healthColor}">${healthLabel}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">${oc} open tickets · Target ≤${t} · <span style="color:${trendCol}">${trendStr}</span></div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:4px">Resolution Benchmark</div>
+        <div style="font-family:var(--mono);font-size:24px;font-weight:600;color:var(--text)">${data.median}d</div>
+        <div style="font-size:11px;color:var(--muted)">median · ${data.p90}d at p90</div>
+      </div>
+    </div>
+
+    <!-- KEY METRICS ROW -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+      ${[
+        ['Financial Impact','💳',data.financial,'Tickets with active payment impact','var(--warn)'],
+        ['Forgotten','⚡',data.forgottenQ.length,'Stale tickets needing escalation',data.forgottenQ.length>0?'var(--danger)':'var(--muted)'],
+        ['Multi-Site','🏢',data.multiSite,'Issues affecting 2+ locations','var(--accent)'],
+        ['TAB Linked','🔗',data.tabLinked,'Investigations tied to dev tickets','var(--accent2)'],
+      ].map(([label,icon,val,desc,color])=>`
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;text-align:center">
+          <div style="font-size:20px;margin-bottom:6px">${icon}</div>
+          <div style="font-family:var(--mono);font-size:28px;font-weight:600;color:${color}">${val}</div>
+          <div style="font-size:11px;font-weight:600;margin-top:4px">${label}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${desc}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- TOP ACTION ITEMS -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-header">
+        <span class="panel-title">Top Action Items — Requires Immediate Attention</span>
+        <span class="panel-badge ${top5.some(t=>t.fin||t.forgotten)?'danger':''}">${top5.length} items</span>
+      </div>
+      <table class="p-table">
+        <thead><tr><th>#</th><th>Ticket</th><th>Account</th><th>Score</th><th>Age</th><th>Key Driver</th></tr></thead>
+        <tbody>
+          ${top5.map((t,i)=>{
+            const sc=t.score>=60?'var(--danger)':t.score>=35?'var(--warn)':t.score>=10?'var(--accent)':'var(--muted)';
+            const driver=t.fin?'💳 Financial impact':t.forgotten?'⚡ Escalation needed':t.review?'⚠ Offline mode':t.sites>1?`🏢 ${t.sites} sites`:`${Math.round(t.age)}d in queue`;
+            return`<tr>
+              <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${i+1}</td>
+              <td class="key-mono">${t.key}</td>
+              <td style="font-weight:500">${t.account||'—'}</td>
+              <td><span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${sc}">${t.score}</span></td>
+              <td style="font-family:var(--mono);font-size:11px;color:${t.age>30?'var(--warn)':'var(--muted)'}">${Math.round(t.age)}d</td>
+              <td style="font-size:12px">${driver}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ACCOUNT CONCENTRATION + PRODUCT AREAS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-header"><span class="panel-title">Account Concentration</span></div>
+        <div class="h-bar">
+          ${Object.entries(data.topAccounts).slice(0,6).map(([name,cnt],i)=>{
+            const pct=Math.round((cnt/data.open.length)*100);
+            const palette=['#4f8aff','#4f8aff','#7ca8ff','#7ca8ff','#a0c0ff','#a0c0ff'];
+            return`<div class="h-bar-row">
+              <span class="h-bar-name">${name}</span>
+              <div class="h-bar-track"><div class="h-bar-fill" style="width:${Math.round((cnt/(Object.values(data.topAccounts)[0]||1))*100)}%;background:${palette[i]}"></div></div>
+              <span class="h-bar-count" style="width:52px;text-align:right">${cnt} <span style="font-size:9px;color:var(--muted)">(${pct}%)</span></span>
+            </div>`;
+          }).join('')}
+        </div>
+        ${topAcct&&(topAcct[1]/data.open.length)>0.3?`<div style="padding:8px 14px;font-size:11px;color:var(--warn);font-family:var(--mono);border-top:1px solid var(--border)">⚠ ${topAcct[0]} = ${Math.round(topAcct[1]/data.open.length*100)}% of queue</div>`:''}
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="panel-header"><span class="panel-title">Tickets by Product Area</span></div>
+        <div class="h-bar">
+          ${Object.entries(data.productAreas).map(([name,cnt])=>{
+            const colors={'Core':'#4f8aff','Loyalty':'#00d4a0','BI & Chef':'#f5a623','TG & KDS':'#ff4d6d','B2C':'#a78bfa','Middleware':'#6b7590'};
+            const pct=Math.round((cnt/data.open.length)*100);
+            return`<div class="h-bar-row">
+              <span class="h-bar-name">${name}</span>
+              <div class="h-bar-track"><div class="h-bar-fill" style="width:${Math.round((cnt/(Object.values(data.productAreas)[0]||1))*100)}%;background:${colors[name]||'#4f8aff'}"></div></div>
+              <span class="h-bar-count" style="width:52px;text-align:right">${cnt} <span style="font-size:9px;color:var(--muted)">(${pct}%)</span></span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER NOTE -->
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.7;padding:12px 0;border-top:1px solid var(--border)">
+      Scoring model: Financial impact (+40) · Site count (up to +30) · Age escalation (up to +20) · Forgotten escalation (+10) · Core product (+5) · TAB linked (−5) · Parked tickets excluded from target count · Jira priority field not used in scoring
+    </div>
+  </div>`;
+}
+
+// ── PRINT STYLES ──────────────────────────────────────────────
+const printStyle=document.createElement('style');
+printStyle.textContent=`
+@media print {
+  #sidebar,#sidebar-overlay,.topbar,button{display:none!important}
+  #main{height:auto;overflow:visible}
+  .page-content{overflow:visible;padding:0}
+  body{background:#fff;color:#111;font-size:12px}
+  .panel,.stat-card{border:1px solid #ddd!important;background:#fff!important}
+  .panel-header{background:#f5f5f5!important}
+  :root{--bg:#fff;--surface:#fff;--surface2:#f5f5f5;--border:#ddd;--text:#111;--muted:#666;--accent:#2563eb;--accent2:#059669;--warn:#d97706;--danger:#dc2626}
+}`;
+document.head.appendChild(printStyle);
+
+// ── PATCH navigate TO TRIGGER MODULE RENDERS ─────────────────
+const _navBase = navigate;
+navigate = function(key, el){
+  _navBase(key, el);
+  if(key==='weekly') setTimeout(renderTrends, 50);
+  if(key==='leadership') setTimeout(renderLeadership, 50);
+};
 
 window.addEventListener('load',()=>{
   const s=localStorage.getItem('tabit_hub_data');
