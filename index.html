@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0d0f12">
 <title>Tabit Ops Hub</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <style>
 :root {
   --bg:#0d0f12; --surface:#141720; --surface2:#1c2030; --surface3:#222840;
@@ -1242,7 +1242,20 @@ function resetTabData(){
 
 function handleTabFile(e){if(e.target.files[0])processTabFile(e.target.files[0]);}
 
+function loadXLSX(callback){
+  if(typeof XLSX!=='undefined'){callback();return;}
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload=callback;
+  s.onerror=()=>alert('Failed to load Excel parser. Please check your internet connection and try again.');
+  document.head.appendChild(s);
+}
+
 function processTabFile(file){
+  loadXLSX(()=>_doProcessTabFile(file));
+}
+
+function _doProcessTabFile(file){
   const reader=new FileReader();
   reader.onload=e=>{
     try{
