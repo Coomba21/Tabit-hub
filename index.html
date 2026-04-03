@@ -1038,6 +1038,7 @@ printStyle.textContent=`
 }`;
 document.head.appendChild(printStyle);
 
+// ── TAB PRIORITY ENGINE v2 ────────────────────────────────────
 const TAB_EXCL = new Set(['Verification','Release Ready','Code Review','Done','Canceled','Closed','New','Ready for Verification']);
 const TAB_NOISE_KW = ['storybook','refactor','deprecate','tech debt','documentation'];
 
@@ -1075,6 +1076,7 @@ function isTabNoise(item){
 }
 
 function tabPriCls(p){return{High:'tb-high',Medium:'tb-med',Low:'tb-low'}[p]||'tb-new';}
+function tabScColor(sc){return sc>=50?'var(--danger)':sc>=25?'var(--warn)':sc>=10?'var(--accent)':'var(--muted)';}
 
 function mkTabDrivers(item){
   const b=item.scored.b;const d=[];
@@ -1088,10 +1090,12 @@ function mkTabDrivers(item){
   return d.join('');
 }
 
-function mkTabTop10(items){
-  if(!items.length)return'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No items to display</div>';
+// Full scored queue table (bugs OR tasks)
+function mkTabQueue(items,showRank){
+  if(!items.length)return'<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">No items to display</div>';
   let h=`<div style="overflow-x:auto"><table class="p-table"><thead><tr>
-    <th>#</th><th>Ticket</th><th>Name</th><th>Priority</th><th>Status</th><th>Score</th><th>Drivers</th>
+    ${showRank?'<th>#</th>':''}
+    <th>Ticket</th><th>Name</th><th>Priority</th><th>Status</th><th>Age</th><th>Score</th><th>Score Drivers</th>
   </tr></thead><tbody>`;
   items.forEach((item,i)=>{
     const parts=(item.key||'').split(' - ');
@@ -1099,52 +1103,80 @@ function mkTabTop10(items){
     const noise=isTabNoise(item);
     const priLabel=item.priority==='New'?'Unrated':item.priority;
     const sc=item.scored.total;
-    const scColor=sc>=50?'var(--danger)':sc>=25?'var(--warn)':sc>=10?'var(--accent)':'var(--muted)';
+    const scC=tabScColor(sc);
+    const ageC=item.scored.ageDays>365?'var(--danger)':item.scored.ageDays>180?'var(--warn)':item.scored.ageDays>90?'var(--warn)':'var(--muted)';
     h+=`<tr>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${i+1}</td>
+      ${showRank?`<td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${i+1}</td>`:''}
       <td><a class="tab-key-link" href="${url}" target="_blank">${kp}</a></td>
-      <td style="font-size:12px;max-width:280px">
-        ${item.name}
-        ${noise?'<span class="tab-badge tb-rv" style="display:block;margin-top:3px">review before sharing</span>':''}
+      <td style="font-size:12px;max-width:260px">
+        <span>${item.name}</span>
+        ${noise?'<span class="tab-badge tb-rv" style="display:block;margin-top:3px;font-size:9px">review before prioritizing</span>':''}
       </td>
       <td><span class="tab-badge ${tabPriCls(item.priority)}">${priLabel}</span></td>
-      <td><span class="tab-badge ${item.status==='Blocked'?'tb-blk':'tb-st'}">${item.status}</span>
-          ${item.comp?`<span style="font-family:var(--mono);font-size:9px;color:var(--muted);display:block;margin-top:2px">${item.comp}</span>`:''}
+      <td>
+        <span class="tab-badge ${item.status==='Blocked'?'tb-blk':'tb-st'}">${item.status}</span>
+        ${item.comp?`<span style="font-family:var(--mono);font-size:9px;color:var(--muted);display:block;margin-top:2px">${item.comp}</span>`:''}
       </td>
-      <td><div class="score-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:${Math.min(100,Math.round((sc/80)*100))}%;background:${scColor}"></div></div><span class="score-num" style="color:${scColor}">${sc}</span></div></td>
+      <td style="font-family:var(--mono);font-size:11px;color:${ageC};white-space:nowrap">${item.scored.ageDays}d</td>
+      <td><div class="score-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:${Math.min(100,Math.round((sc/80)*100))}%;background:${scC}"></div></div><span class="score-num" style="color:${scC}">${sc}</span></div></td>
       <td>${mkTabDrivers(item)}</td>
     </tr>`;
   });
   return h+'</tbody></table></div>';
 }
 
-function mkTabAttn(items){
-  if(!items.length)return'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;font-style:italic">No unrated items with signals found</div>';
+// Recommendation table — unrated items the model thinks should be looked at
+function mkTabRecs(items){
+  if(!items.length)return'<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;font-style:italic">No unrated items with signals found — your backlog looks clean!</div>';
   let h=`<div style="overflow-x:auto"><table class="p-table"><thead><tr>
-    <th>Ticket</th><th>Name</th><th>Status</th><th>Age</th><th>Score</th><th>Why review</th>
+    <th>Ticket</th><th>Name</th><th>Status</th><th>Age</th><th>Score</th><th>Why I recommend this</th>
   </tr></thead><tbody>`;
   items.forEach(item=>{
     const parts=(item.key||'').split(' - ');
     const kp=parts[0],url=parts.length>1?parts.slice(1).join(' - '):'#';
     const noise=isTabNoise(item);
+    const sc=item.scored.total;
+    const ageC=item.scored.ageDays>365?'var(--danger)':item.scored.ageDays>180?'var(--warn)':'var(--muted)';
+    // Build recommendation rationale
     const why=[];
-    if(item.sup>0)why.push(`${item.sup} SUP link${item.sup>1?'s':''}`);
-    if(item.status==='Blocked')why.push('blocked');
-    if(item.scored.ageDays>365)why.push(`${item.scored.ageDays}d in backlog`);
-    else if(item.scored.ageDays>90)why.push(`${item.scored.ageDays}d open`);
-    if(item.links>=3)why.push(`${item.links} issue links`);
-    if(item.scored.b.label>0)why.push('priority label');
-    if(item.scored.b.vip>0)why.push('key customer');
+    if(item.sup>0)why.push(`${item.sup} SUP link${item.sup>1?'s':''} — active customer escalation`);
+    if(item.status==='Blocked')why.push('currently blocked — needs action to unblock');
+    if(item.scored.ageDays>365)why.push(`${item.scored.ageDays}d in backlog — very stale`);
+    else if(item.scored.ageDays>180)why.push(`${item.scored.ageDays}d without priority set`);
+    else if(item.scored.ageDays>90)why.push(`${item.scored.ageDays}d open with no priority`);
+    if(item.links>=5)why.push(`${item.links} issue links — broad scope`);
+    else if(item.links>=3)why.push(`${item.links} issue links`);
+    if(item.scored.b.label>0)why.push('priority label detected');
+    if(item.scored.b.vip>0)why.push('key customer name in title');
     h+=`<tr>
       <td><a class="tab-key-link" href="${url}" target="_blank">${kp}</a></td>
-      <td style="font-size:12px;max-width:260px">${item.name}${noise?' <span class="tab-badge tb-rv">review</span>':''}</td>
-      <td><span class="tab-badge ${item.status==='Blocked'?'tb-blk':'tb-st'}">${item.status}</span></td>
-      <td style="font-family:var(--mono);font-size:11px;color:${item.scored.ageDays>180?'var(--warn)':'var(--muted)'}">${item.scored.ageDays}d</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${item.scored.total}</td>
-      <td>${why.map(w=>`<span class="why-chip">${w}</span>`).join('')}</td>
+      <td style="font-size:12px;max-width:240px">
+        ${item.name}
+        ${noise?'<span class="tab-badge tb-rv" style="display:block;margin-top:3px;font-size:9px">review — may be internal</span>':''}
+      </td>
+      <td>
+        <span class="tab-badge ${item.status==='Blocked'?'tb-blk':'tb-st'}">${item.status}</span>
+        ${item.comp?`<span style="font-family:var(--mono);font-size:9px;color:var(--muted);display:block;margin-top:2px">${item.comp}</span>`:''}
+      </td>
+      <td style="font-family:var(--mono);font-size:11px;color:${ageC};white-space:nowrap">${item.scored.ageDays}d</td>
+      <td style="font-family:var(--mono);font-size:12px;font-weight:600;color:${tabScColor(sc)}">${sc}</td>
+      <td style="font-size:11px;color:var(--muted);line-height:1.6">${why.join(' · ')||'Multiple weak signals combined'}</td>
     </tr>`;
   });
   return h+'</tbody></table></div>';
+}
+
+// Tab legend HTML
+function mkTabLegend(){
+  return`<div class="tab-legend">
+    <div class="tab-leg"><span class="tab-dot td-sup"></span>SUP links (×8)</div>
+    <div class="tab-leg"><span class="tab-dot td-lnk"></span>Issue links (×2)</div>
+    <div class="tab-leg"><span class="tab-dot td-man"></span>Manual priority</div>
+    <div class="tab-leg"><span class="tab-dot td-age"></span>Age in backlog</div>
+    <div class="tab-leg"><span class="tab-dot td-blk"></span>Blocked</div>
+    <div class="tab-leg"><span class="tab-dot td-lbl"></span>Label signal</div>
+    <div class="tab-leg"><span class="tab-dot td-vip"></span>Key customer</div>
+  </div>`;
 }
 
 function switchTabSection(type,id,el){
@@ -1159,12 +1191,42 @@ function renderTabDashboard(data,fileName){
   const dash=document.getElementById('tab-dashboard-section');
   dash.style.display='block';
 
-  const naBugs=data.attnBugs,naTasks=data.attnTasks;
+  const bugs=data.bugs||[],tasks=data.tasks||[];
+  const unratedBugs=bugs.filter(r=>r.priority==='New').length;
+  const unratedTasks=tasks.filter(r=>r.priority==='New').length;
+  const blocked=data.blocked||0;
+  const highPri=(bugs.concat(tasks)).filter(r=>r.priority==='High').length;
+
+  // Alerts
+  const alerts=[];
+  const blockedItems=(bugs.concat(tasks)).filter(r=>r.status==='Blocked');
+  if(blockedItems.length){
+    const keys=blockedItems.map(r=>`<span style="font-family:var(--mono);color:var(--accent)">${(r.key||'').split(' - ')[0]}</span>`).join(', ');
+    alerts.push({cls:'',icon:'🔴',html:`<strong>${blockedItems.length} item${blockedItems.length>1?'s are':' is'} currently blocked</strong> — ${keys}. These need action to unblock development.`});
+  }
+  const staleUnrated=bugs.filter(r=>r.priority==='New'&&r.scored&&r.scored.ageDays>180);
+  if(staleUnrated.length){
+    alerts.push({cls:'warn',icon:'🟡',html:`<strong>${staleUnrated.length} bug${staleUnrated.length>1?'s have':' has'} been unrated for 180+ days</strong> — long-term backlog drift. These should be triaged or closed.`});
+  }
+  const supUnrated=bugs.filter(r=>r.priority==='New'&&r.sup>0);
+  if(supUnrated.length){
+    const keys=supUnrated.map(r=>`<span style="font-family:var(--mono);color:var(--accent)">${(r.key||'').split(' - ')[0]}</span>`).join(', ');
+    alerts.push({cls:'warn',icon:'🟡',html:`<strong>${supUnrated.length} unrated bug${supUnrated.length>1?'s have':' has'} active SUP links</strong> — ${keys}. Customer-escalated bugs should have a priority set.`});
+  }
+
+  const alertsHTML=alerts.length
+    ?alerts.map(a=>`<div class="alert-row ${a.cls}" style="align-items:flex-start"><span style="font-size:14px;flex-shrink:0">${a.icon}</span><div>${a.html}</div></div>`).join('')
+    :'<div style="padding:14px 18px;font-size:13px;color:var(--accent2)">✓ No critical flags detected.</div>';
+
+  // Recommendation engine — unrated items ranked by score, noise filtered last
+  const hasSig=i=>i.sup>0||i.status==='Blocked'||i.scored.ageDays>90||i.links>=3||i.scored.b.label>0||i.scored.b.vip>0;
+  const recBugs=bugs.filter(r=>r.priority==='New'&&hasSig(r)).sort((a,b)=>b.scored.total-a.scored.total).slice(0,20);
+  const recTasks=tasks.filter(r=>r.priority==='New'&&hasSig(r)).sort((a,b)=>b.scored.total-a.scored.total).slice(0,20);
 
   dash.innerHTML=`
   <div class="data-status">
     <div class="data-dot"></div>
-    <span>Loaded: <strong>${fileName}</strong> &nbsp;·&nbsp; ${data.bugs.length} active bugs &nbsp;·&nbsp; ${data.tasks.length} active tasks &nbsp;·&nbsp; ${new Date().toLocaleString()}</span>
+    <span>Loaded: <strong>${fileName}</strong> &nbsp;·&nbsp; ${bugs.length} active bugs &nbsp;·&nbsp; ${tasks.length} active tasks &nbsp;·&nbsp; ${new Date().toLocaleString()}</span>
     <button onclick="resetTabData()" style="margin-left:auto;background:none;border:1px solid rgba(0,212,160,.3);color:var(--accent2);font-size:10px;padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--mono)">Upload New</button>
   </div>
 
@@ -1173,41 +1235,82 @@ function renderTabDashboard(data,fileName){
   <div class="grid-4">
     <div class="stat-card blue">
       <div class="stat-label">Active Bugs</div>
-      <div class="stat-value blue">${data.bugs.length}</div>
-      <div class="stat-sub">${data.bugs.filter(r=>r.priority==='New').length} unrated · excl. done &amp; active dev</div>
+      <div class="stat-value blue">${bugs.length}</div>
+      <div class="stat-sub">${unratedBugs} unrated · excl. done &amp; active dev</div>
     </div>
     <div class="stat-card muted">
       <div class="stat-label">Active Tasks</div>
-      <div class="stat-value" style="color:var(--text)">${data.tasks.length}</div>
-      <div class="stat-sub">${data.tasks.filter(r=>r.priority==='New').length} unrated · excl. done &amp; active dev</div>
+      <div class="stat-value" style="color:var(--text)">${tasks.length}</div>
+      <div class="stat-sub">${unratedTasks} unrated · excl. done &amp; active dev</div>
     </div>
-    <div class="stat-card warn">
+    <div class="stat-card ${unratedBugs>0?'warn':'muted'}">
       <div class="stat-label">Unrated Bugs</div>
-      <div class="stat-value warn">${data.bugs.filter(r=>r.priority==='New').length}</div>
+      <div class="stat-value ${unratedBugs>0?'warn':''}" style="${unratedBugs===0?'color:var(--muted)':''}">${unratedBugs}</div>
       <div class="stat-sub">Priority US Ops not yet set</div>
     </div>
-    <div class="stat-card ${data.blocked>0?'danger':'muted'}">
+    <div class="stat-card ${blocked>0?'danger':'muted'}">
       <div class="stat-label">Blocked Items</div>
-      <div class="stat-value ${data.blocked>0?'danger':''}" style="${data.blocked===0?'color:var(--muted)':''}">${data.blocked}</div>
+      <div class="stat-value ${blocked>0?'danger':''}" style="${blocked===0?'color:var(--muted)':''}">${blocked}</div>
       <div class="stat-sub">bugs + tasks currently blocked</div>
     </div>
   </div>
 
-  <!-- NEEDS ATTENTION -->
+  <!-- FLAGS -->
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel-header">
+      <span class="panel-title">⚠ Flags Requiring Attention</span>
+      <span class="panel-badge ${alerts.length>0?'danger':''}">${alerts.length} flag${alerts.length!==1?'s':''}</span>
+    </div>
+    ${alertsHTML}
+  </div>
+
+  <!-- FULL QUEUE DEEP DIVE -->
   <div class="panel">
     <div class="panel-header">
-      <span class="panel-title">Needs Attention — Unrated Items With Signals</span>
-      <span class="panel-badge">${naBugs.length + naTasks.length} items</span>
+      <span class="panel-title">Deep Dive</span>
+      <span class="panel-badge">${bugs.length+tasks.length} active items · ${new Date().toLocaleDateString()}</span>
     </div>
-    <div class="tab-section-tabs">
-      <div class="tab-section-tab active tsec-tab-attn" onclick="switchTabSection('attn','tsec-bugs-attn',this)">Bugs <span style="font-size:9px;opacity:.6">(${naBugs.length})</span></div>
-      <div class="tab-section-tab tsec-tab-attn" onclick="switchTabSection('attn','tsec-tasks-attn',this)">Tasks <span style="font-size:9px;opacity:.6">(${naTasks.length})</span></div>
+    <div class="drill-tabs">
+      <div class="drill-tab active" onclick="switchDrillTab(this,'td-bugs')">🐛 Bugs (${bugs.length})</div>
+      <div class="drill-tab" onclick="switchDrillTab(this,'td-tasks')">📋 Tasks (${tasks.length})</div>
+      <div class="drill-tab" onclick="switchDrillTab(this,'td-recs')">💡 Prioritize These (${recBugs.length+recTasks.length})</div>
     </div>
-    <div id="tsec-bugs-attn" class="tab-section-panel active">${mkTabAttn(naBugs)}</div>
-    <div id="tsec-tasks-attn" class="tab-section-panel">${mkTabAttn(naTasks)}</div>
+    <div id="td-bugs" class="drill-panel active">
+      <div style="padding:10px 16px;font-size:11px;color:var(--muted);font-family:var(--mono);border-bottom:1px solid var(--border)">
+        All active bugs ranked by score · Score = SUP(×8) + Links(×2) + Manual priority + Age + Blocked + Labels + Key customer
+      </div>
+      ${mkTabQueue(bugs,true)}
+      ${mkTabLegend()}
+    </div>
+    <div id="td-tasks" class="drill-panel">
+      <div style="padding:10px 16px;font-size:11px;color:var(--muted);font-family:var(--mono);border-bottom:1px solid var(--border)">
+        All active tasks ranked by score · Same scoring model as bugs
+      </div>
+      ${mkTabQueue(tasks,true)}
+      ${mkTabLegend()}
+    </div>
+    <div id="td-recs" class="drill-panel">
+      <div style="padding:10px 16px;background:rgba(245,166,35,.05);border-bottom:1px solid var(--border)">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--warn);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">💡 Scoring-based recommendations</div>
+        <div style="font-size:12px;color:var(--muted)">These items have no Priority US Ops set but carry signals — SUP escalations, blocked status, age, issue links, or key customer names — that suggest they warrant your attention. Review each and set a priority on your Monday.com board.</div>
+      </div>
+      <div class="tab-section-tabs">
+        <div class="tab-section-tab active tsec-tab-rec" onclick="switchTabSection('rec','trec-bugs',this)">Bugs <span style="font-size:9px;opacity:.6">(${recBugs.length})</span></div>
+        <div class="tab-section-tab tsec-tab-rec" onclick="switchTabSection('rec','trec-tasks',this)">Tasks <span style="font-size:9px;opacity:.6">(${recTasks.length})</span></div>
+      </div>
+      <div id="trec-bugs" class="tab-section-panel active">${mkTabRecs(recBugs)}</div>
+      <div id="trec-tasks" class="tab-section-panel">${mkTabRecs(recTasks)}</div>
+    </div>
   </div>
 
   </div>`;
+}
+
+function switchDrillTab(el,id){
+  document.querySelectorAll('#tab-dashboard-section .drill-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#tab-dashboard-section .drill-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
 }
 
 function resetTabData(){
@@ -1375,8 +1478,8 @@ function renderTabReport(){
         <div class="tab-section-tab active tsec-tab-top" onclick="switchTabSection('top','tsec-bugs-top',this)">Bugs <span style="font-size:9px;opacity:.6">(${(data.top10bugs||[]).length})</span></div>
         <div class="tab-section-tab tsec-tab-top" onclick="switchTabSection('top','tsec-tasks-top',this)">Tasks <span style="font-size:9px;opacity:.6">(${(data.top10tasks||[]).length})</span></div>
       </div>
-      <div id="tsec-bugs-top" class="tab-section-panel active">${mkTabTop10(data.top10bugs||[])}</div>
-      <div id="tsec-tasks-top" class="tab-section-panel">${mkTabTop10(data.top10tasks||[])}</div>
+      <div id="tsec-bugs-top" class="tab-section-panel active">${mkTabQueue(data.top10bugs||[],true)}</div>
+      <div id="tsec-tasks-top" class="tab-section-panel">${mkTabQueue(data.top10tasks||[],true)}</div>
       <div class="tab-legend">
         <div class="tab-leg"><span class="tab-dot td-sup"></span>SUP links</div>
         <div class="tab-leg"><span class="tab-dot td-lnk"></span>Issue links</div>
