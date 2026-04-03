@@ -9,7 +9,6 @@
 <meta name="theme-color" content="#0d0f12">
 <title>Tabit Ops Hub</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <style>
 :root {
   --bg:#0d0f12; --surface:#141720; --surface2:#1c2030; --surface3:#222840;
@@ -118,28 +117,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .tag-new2{background:rgba(79,138,255,.1);color:var(--accent);border:1px solid rgba(79,138,255,.2)}
 .reason-text{font-size:11px;color:var(--muted);line-height:1.4;max-width:240px}
 
-/* TAB PRIORITY */
-.tab-driver{font-size:10px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:2px 6px;display:inline-flex;align-items:center;gap:3px;margin:1px}
-.tab-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;display:inline-block}
-.td-sup{background:#c4541e}.td-lnk{background:#2a72b8}.td-age{background:#6b7590}.td-man{background:#1a7a4a}.td-blk{background:#8b2020}.td-lbl{background:#5a42b0}.td-vip{background:#a83060}
-.tab-badge{display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;font-weight:500;white-space:nowrap;margin:1px}
-.tb-high{background:rgba(245,166,35,.15);color:#f5a623;border:1px solid rgba(245,166,35,.3)}
-.tb-med{background:rgba(79,138,255,.12);color:#7ca8ff;border:1px solid rgba(79,138,255,.25)}
-.tb-low{background:rgba(107,117,144,.15);color:var(--muted);border:1px solid var(--border)}
-.tb-new{background:rgba(107,117,144,.1);color:var(--muted);border:1px solid var(--border)}
-.tb-blk{background:rgba(255,77,109,.15);color:#ff7a90;border:1px solid rgba(255,77,109,.3)}
-.tb-rv{background:rgba(245,166,35,.12);color:#f5a623;border:1px solid rgba(245,166,35,.25)}
-.tb-st{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
-.why-chip{display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 5px;border-radius:3px;background:rgba(245,166,35,.1);color:#f5a623;border:1px solid rgba(245,166,35,.2);margin:1px}
-.tab-key-link{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500;text-decoration:none;white-space:nowrap}
-.tab-key-link:hover{text-decoration:underline}
-.tab-section-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface2)}
-.tab-section-tab{padding:9px 16px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
-.tab-section-tab:hover{color:var(--text)}
-.tab-section-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(79,138,255,.05)}
-.tab-section-panel{display:none;padding:0}.tab-section-panel.active{display:block}
-.tab-legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--border);background:var(--surface2)}
-.tab-leg{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)}
+/* BAR CHARTS */
 .bar-chart{padding:14px 18px}
 .bar-row{display:flex;align-items:center;margin-bottom:8px;gap:8px}
 .bar-label{font-family:var(--mono);font-size:10px;color:var(--muted);width:58px;flex-shrink:0;text-align:right}
@@ -214,8 +192,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     <div class="nav-item" onclick="navigate('features',this)"><span class="nav-icon">🐛</span>TAB Priority</div>
     <div class="sb-section">Reporting</div>
     <div class="nav-item" onclick="navigate('leadership',this)"><span class="nav-icon">📊</span>Leadership View</div>
+    <div class="nav-item" onclick="navigate('tab-report',this)"><span class="nav-icon">📋</span>TAB Priority Report</div>
   </div>
-  <div class="sb-footer">Tabit Ops Hub <span class="ver">v2.0</span><br><span style="margin-top:3px;display:block">Build: Apr 2026</span></div>
+  <div class="sb-footer">Tabit Ops Hub <span class="ver">v2.1</span><br><span style="margin-top:3px;display:block">Build: Apr 2026</span></div>
 </nav>
 
 <div id="main">
@@ -268,13 +247,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div id="tab-dashboard-section" style="display:none"></div>
     </div>
     <div class="page" id="page-leadership"><div id="leadership-content"><div class="coming-soon"><div class="coming-soon-icon">📊</div><h2 style="color:var(--muted)">No data loaded yet</h2><p style="color:var(--muted)">Upload a CSV export on the SUP Queue page first.</p></div></div></div>
+    <div class="page" id="page-tab-report"><div id="tab-report-content"><div class="coming-soon"><div class="coming-soon-icon">📋</div><h2 style="color:var(--muted)">No TAB data loaded yet</h2><p style="color:var(--muted)">Upload a Monday.com export on the TAB Priority page first.</p></div></div></div>
   </div>
 </div>
 
 <script>
 // ── NAV ───────────────────────────────────────────────────────
 function navigate(key, el) {
-  const map = {'sup-queue':'page-sup-queue','weekly':'page-weekly','features':'page-features','leadership':'page-leadership'};
+  const map = {'sup-queue':'page-sup-queue','weekly':'page-weekly','features':'page-features','leadership':'page-leadership','tab-report':'page-tab-report'};
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(map[key]).classList.add('active');
@@ -346,6 +326,13 @@ function isDemoOnly(desc){
   return e.length>0&&e.some(v=>v.includes('DEMO'))&&!e.some(v=>v.startsWith('PROD'));
 }
 function hasOffline(desc){return desc?/offline\s+mode|store[\s\-&]+forward/i.test(desc):false}
+function hasPrintingIssue(desc,sum){
+  const t=((desc||'')+' '+(sum||'')).toLowerCase();
+  // Spooler must be paired with print/drop/offline context — avoid matching Spooler PAD device names
+  const spoolerMatch=/spooler.{0,40}(drop|offline|print|crash|loop|down)|(drop|offline|print|crash|loop|down).{0,40}spooler/.test(t);
+  const printMatch=/print.*down|print.*not.*work|print.*fail|printer.*not.*print|printer.*drop|receipt.*not.*print|kitchen.*print|kds.*print|print.*issue|printing.*issue|lost.*print|printers.*not.*print/.test(t);
+  return spoolerMatch||printMatch;
+}
 function isCosmetic(desc,sum){
   const t=((desc||'')+' '+(sum||'')).toLowerCase();
   return/cosmetic|icon.*not.*appear|exclamation.*point|visual.*indicator|clean.*up.*error\s+message|missing.*blank.*error\s+message|error message.*wording/.test(t);
@@ -366,6 +353,9 @@ function detectFin(desc,sum){
     [/locked.*order/,'Locked order — payment blocked'],
     [/order.*locked/,'Locked order — payment blocked'],
     [/unable to.*process.*payment/,'Payment processing blocked'],
+    [/unable to close.*order/,'Unable to close order — business day blocked'],
+    [/cannot close.*order/,'Cannot close order — business day blocked'],
+    [/close.*otc.*order/,'OTC order cannot be closed'],
     [/balance.*close.*order/,'Order balance needs manual correction'],
     [/inject.*refund.*tip|refund.*tip.*close/,'Refunded tips require manual injection'],
   ];
@@ -387,6 +377,7 @@ function scoreTicket(t){
   let s=0;const r=[];
   if(t.fin){s+=40;r.push(t.finReason)}
   if(t.review)r.push('⚠ Offline mode — confirm financial impact');
+  if(t.printing&&!t.review){s+=30;r.push('🖨 Printing/spooler outage — operational impact')}
   if(t.sites>=8){s+=30;r.push(`${t.sites} sites affected`)}
   else if(t.sites>=4){s+=20;r.push(`${t.sites} sites affected`)}
   else if(t.sites>=2){s+=10;r.push(`${t.sites} sites affected`)}
@@ -424,6 +415,7 @@ function analyzeData(rows,fileName){
       created,age:Math.round(age*10)/10,dtr,
       fin:f.fin,finReason:f.reason,review:f.review,
       demoOnly:isDemoOnly(desc),cosmetic:isCosmetic(desc,sum),
+      printing:hasPrintingIssue(desc,sum),
       sites:countOrgs(desc),tabLinks:tabs,tabCount:tabs.length,
       parked:PARKED_TICKETS.has(key),forgotten:FORGOTTEN_TICKETS.has(key),
     };
@@ -561,7 +553,7 @@ function renderDashboard(a,fileName){
     </div>
     <div class="drill-panel active" id="dt-priority">
       <div style="font-size:11px;color:var(--muted);font-family:var(--mono);padding:8px 10px;background:rgba(79,138,255,.04);border-radius:4px;border:1px solid rgba(79,138,255,.1);margin-bottom:12px">
-        Score = Financial (+40) · Sites ≥8(+30) ≥4(+20) ≥2(+10) · Age >90d(+20) >30d(+12) >14d(+5) · Forgotten(+10) · Core(+5) · TAB linked(−5) · Parked(0) · Jira priority field not used
+        Score = Financial (+40) · Printing outage (+30) · Sites ≥8(+30) ≥4(+20) ≥2(+10) · Age >90d(+20) >30d(+12) >14d(+5) · Forgotten(+10) · Core(+5) · TAB linked(−5) · Parked(0) · Stacks: financial + printing = +70
       </div>
       ${buildPriorityTable(a.open)}
     </div>
@@ -618,6 +610,7 @@ function buildPriorityTable(tickets){
     const age=t.age<1?'Today':t.age>30?`<span style="color:var(--warn)">${Math.round(t.age)}d</span>`:`${Math.round(t.age)}d`;
     let tags='';
     if(t.fin)tags+=`<span class="tag tag-fin">💳 Fin</span>`;
+    if(t.printing)tags+=`<span class="tag" style="background:rgba(79,138,255,.12);color:#7ca8ff;border:1px solid rgba(79,138,255,.3)">🖨 Print</span>`;
     if(t.review)tags+=`<span class="tag tag-offline">⚠ Offline</span>`;
     if(t.forgotten)tags+=`<span class="tag tag-forgotten">⚡ Forgotten</span>`;
     if(t.parked)tags+=`<span class="tag tag-parked">🅿 Parked</span>`;
@@ -1031,7 +1024,20 @@ function renderLeadership(){
   </div>`;
 }
 
-// ── TAB PRIORITY ENGINE ───────────────────────────────────────
+// ── PRINT STYLES ──────────────────────────────────────────────
+const printStyle=document.createElement('style');
+printStyle.textContent=`
+@media print {
+  #sidebar,#sidebar-overlay,.topbar,button{display:none!important}
+  #main{height:auto;overflow:visible}
+  .page-content{overflow:visible;padding:0}
+  body{background:#fff;color:#111;font-size:12px}
+  .panel,.stat-card{border:1px solid #ddd!important;background:#fff!important}
+  .panel-header{background:#f5f5f5!important}
+  :root{--bg:#fff;--surface:#fff;--surface2:#f5f5f5;--border:#ddd;--text:#111;--muted:#666;--accent:#2563eb;--accent2:#059669;--warn:#d97706;--danger:#dc2626}
+}`;
+document.head.appendChild(printStyle);
+
 const TAB_EXCL = new Set(['Verification','Release Ready','Code Review','Done','Canceled','Closed','New','Ready for Verification']);
 const TAB_NOISE_KW = ['storybook','refactor','deprecate','tech debt','documentation'];
 
@@ -1187,34 +1193,6 @@ function renderTabDashboard(data,fileName){
     </div>
   </div>
 
-  <!-- TOP 10 REPORT -->
-  <div class="panel">
-    <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center">
-      <span class="panel-title">Top 10 Priority Report</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="panel-badge">${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
-        <button onclick="doTabPrint()" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:10px;padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--mono)">Export PDF</button>
-      </div>
-    </div>
-    <div id="tab-print-header" style="display:none;padding:14px 18px 0;font-family:var(--mono);font-size:11px;color:var(--muted)"></div>
-    <div class="tab-section-tabs">
-      <div class="tab-section-tab active tsec-tab-top" onclick="switchTabSection('top','tsec-bugs-top',this)">Bugs <span style="font-size:9px;opacity:.6">(${data.top10bugs.length})</span></div>
-      <div class="tab-section-tab tsec-tab-top" onclick="switchTabSection('top','tsec-tasks-top',this)">Tasks <span style="font-size:9px;opacity:.6">(${data.top10tasks.length})</span></div>
-    </div>
-    <div id="tsec-bugs-top" class="tab-section-panel active">${mkTabTop10(data.top10bugs)}</div>
-    <div id="tsec-tasks-top" class="tab-section-panel">${mkTabTop10(data.top10tasks)}</div>
-    <div class="tab-legend">
-      <div class="tab-leg"><span class="tab-dot td-sup"></span>SUP links</div>
-      <div class="tab-leg"><span class="tab-dot td-lnk"></span>Issue links</div>
-      <div class="tab-leg"><span class="tab-dot td-man"></span>Manual priority</div>
-      <div class="tab-leg"><span class="tab-dot td-age"></span>Age in backlog</div>
-      <div class="tab-leg"><span class="tab-dot td-blk"></span>Blocked</div>
-      <div class="tab-leg"><span class="tab-dot td-lbl"></span>Label signal</div>
-      <div class="tab-leg"><span class="tab-dot td-vip"></span>Key customer</div>
-      <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--muted)">Score = SUP(×8) + Links(×2) + Manual(10/5/1) + Age(6/4/2/1) + Blocked(+4) + Labels</div>
-    </div>
-  </div>
-
   <!-- NEEDS ATTENTION -->
   <div class="panel">
     <div class="panel-header">
@@ -1318,65 +1296,126 @@ function doTabPrint(){
   const hdr=document.getElementById('tab-print-header');
   const activeTab=document.querySelector('.tsec-tab-top.active');
   const type=activeTab?activeTab.textContent.trim().split(' ')[0]:'Bugs';
-  hdr.textContent=`Top 10 Priority Report — ${type} · ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · US Ops`;
-  hdr.style.display='block';
+  if(hdr){
+    hdr.textContent=`Top 10 Priority Report — ${type} · ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · US Ops`;
+    hdr.style.display='block';
+  }
   window.print();
-  setTimeout(()=>{hdr.style.display='none';},1000);
+  setTimeout(()=>{if(hdr)hdr.style.display='none';},1000);
 }
 
 // ── TAB DRAG & DROP (set up after load) ───────────────────────
-window.addEventListener('load',()=>{
-  // Restore TAB data if saved
-  const ts=localStorage.getItem('tabit_hub_tab_data');
-  if(ts){try{const d=JSON.parse(ts);if(d&&d.bugs)renderTabDashboard(d,d.fileName);}catch(e){console.error(e);}}
-
-  // Set up TAB drop zone
-  const tdz=document.getElementById('tab-drop-zone');
-  if(tdz){
-    tdz.addEventListener('dragover',e=>{e.preventDefault();tdz.classList.add('dragover');});
-    tdz.addEventListener('dragleave',()=>tdz.classList.remove('dragover'));
-    tdz.addEventListener('drop',e=>{
-      e.preventDefault();tdz.classList.remove('dragover');
-      const f=e.dataTransfer.files[0];
-      if(f&&f.name.endsWith('.xlsx'))processTabFile(f);
-      else alert('Please drop a .xlsx file.');
-    });
-  }
-});
-
-// ── PRINT STYLES ──────────────────────────────────────────────
-const printStyle=document.createElement('style');
-printStyle.textContent=`
-@media print {
-  #sidebar,#sidebar-overlay,.topbar,button{display:none!important}
-  #main{height:auto;overflow:visible}
-  .page-content{overflow:visible;padding:0}
-  body{background:#fff;color:#111;font-size:12px}
-  .panel,.stat-card{border:1px solid #ddd!important;background:#fff!important}
-  .panel-header{background:#f5f5f5!important}
-  .tab-section-tabs,.tab-legend,.data-status,.grid-4,#tab-upload-section,#tsec-tasks-top,#tsec-bugs-attn,#tsec-tasks-attn,.tab-section-tab{display:none!important}
-  .tab-section-panel{display:none!important}
-  .tab-section-panel.active{display:block!important}
-  #tab-print-header{display:block!important;padding:0 0 12px 0!important;font-size:13px!important;color:#111!important;border-bottom:1px solid #ccc;margin-bottom:12px}
-  .tab-driver{background:#f5f5f5!important;border:1px solid #ddd!important;color:#444!important}
-  .tab-badge{border:1px solid #ddd!important}
-  :root{--bg:#fff;--surface:#fff;--surface2:#f5f5f5;--border:#ddd;--text:#111;--muted:#666;--accent:#2563eb;--accent2:#059669;--warn:#d97706;--danger:#dc2626}
-}`;
-document.head.appendChild(printStyle);
 
 // ── PATCH navigate TO TRIGGER MODULE RENDERS ─────────────────
 const _navBase = navigate;
 navigate = function(key, el){
   _navBase(key, el);
-  const titles={'sup-queue':'SUP Queue Analysis','weekly':'Weekly Trends','features':'TAB Priority — Bugs & Tasks','leadership':'Leadership View'};
+  const titles={
+    'sup-queue':'SUP Queue Analysis',
+    'weekly':'Weekly Trends',
+    'features':'TAB Priority — Bugs & Tasks',
+    'leadership':'Leadership View',
+    'tab-report':'TAB Priority Report'
+  };
   if(titles[key])document.getElementById('topbar-title').textContent=titles[key];
   if(key==='weekly') setTimeout(renderTrends, 50);
   if(key==='leadership') setTimeout(renderLeadership, 50);
+  if(key==='tab-report') setTimeout(renderTabReport, 50);
 };
+
+function renderTabReport(){
+  const el=document.getElementById('tab-report-content');
+  const saved=localStorage.getItem('tabit_hub_tab_data');
+  if(!saved){
+    el.innerHTML='<div class="coming-soon"><div class="coming-soon-icon">📋</div><h2 style="color:var(--muted)">No TAB data loaded yet</h2><p style="color:var(--muted)">Upload a Monday.com export on the TAB Priority page first.</p></div>';
+    return;
+  }
+  let data;
+  try{data=JSON.parse(saved);}catch(e){return;}
+
+  // Restore scored objects (lost during JSON serialisation)
+  ['top10bugs','top10tasks'].forEach(k=>{
+    if(data[k])data[k].forEach(r=>{if(!r.scored)r.scored=calcTabScore(r);});
+  });
+
+  const dateStr=data.savedAt?new Date(data.savedAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  el.innerHTML=`
+  <div style="max-width:900px">
+
+    <!-- PRINT BUTTON ROW -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">TAB Priority Report · ${dateStr} · Source: ${data.fileName||'Monday.com export'}</div>
+      <button onclick="doTabPrint()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 16px;border-radius:5px;cursor:pointer;font-size:12px;font-family:var(--sans)">🖨 Print / Save PDF</button>
+    </div>
+
+    <!-- HEADER STATUS BANNER -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;gap:20px">
+      <div style="flex:1">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">TAB Priority — US Ops</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text)">Top 10 Bugs &amp; Tasks</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">${(data.bugs||[]).length} active bugs · ${(data.tasks||[]).length} active tasks · ${(data.bugs||[]).filter(r=>r.priority==='New').length} unrated bugs</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:4px">Blocked Items</div>
+        <div style="font-family:var(--mono);font-size:28px;font-weight:600;color:${data.blocked>0?'var(--danger)':'var(--muted)'}">
+          ${data.blocked||0}</div>
+        <div style="font-size:11px;color:var(--muted)">bugs + tasks</div>
+      </div>
+    </div>
+
+    <!-- TOP 10 REPORT PANEL -->
+    <div class="panel">
+      <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span class="panel-title">Top 10 Priority Report</span>
+        <span class="panel-badge">${dateStr}</span>
+      </div>
+      <div id="tab-print-header" style="display:none;padding:14px 18px 0;font-family:var(--mono);font-size:11px;color:var(--muted)"></div>
+      <div class="tab-section-tabs">
+        <div class="tab-section-tab active tsec-tab-top" onclick="switchTabSection('top','tsec-bugs-top',this)">Bugs <span style="font-size:9px;opacity:.6">(${(data.top10bugs||[]).length})</span></div>
+        <div class="tab-section-tab tsec-tab-top" onclick="switchTabSection('top','tsec-tasks-top',this)">Tasks <span style="font-size:9px;opacity:.6">(${(data.top10tasks||[]).length})</span></div>
+      </div>
+      <div id="tsec-bugs-top" class="tab-section-panel active">${mkTabTop10(data.top10bugs||[])}</div>
+      <div id="tsec-tasks-top" class="tab-section-panel">${mkTabTop10(data.top10tasks||[])}</div>
+      <div class="tab-legend">
+        <div class="tab-leg"><span class="tab-dot td-sup"></span>SUP links</div>
+        <div class="tab-leg"><span class="tab-dot td-lnk"></span>Issue links</div>
+        <div class="tab-leg"><span class="tab-dot td-man"></span>Manual priority</div>
+        <div class="tab-leg"><span class="tab-dot td-age"></span>Age in backlog</div>
+        <div class="tab-leg"><span class="tab-dot td-blk"></span>Blocked</div>
+        <div class="tab-leg"><span class="tab-dot td-lbl"></span>Label signal</div>
+        <div class="tab-leg"><span class="tab-dot td-vip"></span>Key customer</div>
+        <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--muted)">Score = SUP(×8) + Links(×2) + Manual(10/5/1) + Age(6/4/2/1) + Blocked(+4) + Labels</div>
+      </div>
+    </div>
+
+    <!-- FOOTER NOTE -->
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.7;padding:12px 0;border-top:1px solid var(--border)">
+      Scoring model: SUP links (×8, max 6) · Issue links (×2, max 13) · Manual priority US Ops (High+10 / Med+5 / Low+1) · Age in backlog (365d+6 / 180d+4 / 90d+2 / 30d+1) · Blocked (+4) · Label signals (up to +19) · Key customer name in title (up to +6) · Excludes: Verification, Release Ready, Code Review, Done, Canceled
+    </div>
+  </div>`;
+}
 
 window.addEventListener('load',()=>{
   const s=localStorage.getItem('tabit_hub_data');
   if(s){try{const{data,fileName}=JSON.parse(s);if(data)renderDashboard(data,fileName)}catch(e){console.error(e)}}
+  // Restore TAB data status bar if loaded
+  const ts=localStorage.getItem('tabit_hub_tab_data');
+  if(ts){try{const d=JSON.parse(ts);if(d&&d.bugs)renderTabDashboard(d,d.fileName||'');}catch(e){console.error(e);}}
+  // SUP drop zone
+  const dz2=document.getElementById('drop-zone');
+  if(dz2){
+    dz2.addEventListener('dragover',e=>{e.preventDefault();dz2.classList.add('dragover');});
+    dz2.addEventListener('dragleave',()=>dz2.classList.remove('dragover'));
+    dz2.addEventListener('drop',e=>{e.preventDefault();dz2.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.csv'))processFile(f);else alert('Please drop a .csv file.');});
+  }
+  // TAB drop zone
+  const tdz=document.getElementById('tab-drop-zone');
+  if(tdz){
+    tdz.addEventListener('dragover',e=>{e.preventDefault();tdz.classList.add('dragover');});
+    tdz.addEventListener('dragleave',()=>tdz.classList.remove('dragover'));
+    tdz.addEventListener('drop',e=>{e.preventDefault();tdz.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.xlsx'))processTabFile(f);else alert('Please drop a .xlsx file.');});
+  }
 });
 </script>
 </body>
